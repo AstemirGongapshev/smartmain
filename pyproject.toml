@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "smartmain"
+version = "0.1.0"
+description = "Backend for Smart MFO project"
+authors = ["Ваше Имя <ваш.email@example.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+pydantic = {extras = ["email"], version = "^2.10.3"}
+fastapi = "^0.115.6"
+python-telegram-bot = "20.3"
+sqlalchemy = "^2.0.36"
+passlib = {extras = ["bcrypt"], version = "^1.7.4"}
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

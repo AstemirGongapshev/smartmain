@@ -1,7 +1,5 @@
-# smart_bot/bot.py
-
 import logging
-from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
+from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
@@ -12,296 +10,175 @@ from telegram.ext import (
 from db import init_db, get_db
 from tools import (
     create_user,
-    validate_loan_request,
     create_credit_history,
-    update_user_state,
-    get_user_state,
-    create_login_request,
-    authenticate_user,
-    create_credit_history
+    authenticate_user
 )
-from shemas import UserCreate, LoginRequestCreate, UserState, LoginRequest, CreditHistoryCreate
+from shemas import  CreditHistoryCreate, UserCreate
 from models import User
-from sqlalchemy.orm import Session
 
-# Установите токен бота вручную
 BOT_TOKEN = "8072664742:AAG257f9Dxsz4yG2VdOoPi8UFtCTZEYfJWg"
 
-# Настройка логирования
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
-# Инициализация базы данных
 def initialize_database():
     init_db()
 
 start_keyboard = [['Зарегистрироваться', 'Войти'], ['Добавить кредитную историю']]
 start_markup = ReplyKeyboardMarkup(start_keyboard, one_time_keyboard=True, resize_keyboard=True)
 
+REGISTER_NAME = "register_name"
+REGISTER_PASSWORD = "register_password"
+LOGIN_ID = "login_id"
+LOGIN_PASSWORD = "login_password"
+ADD_CREDIT_ORGANIZATION = "add_credit_organization"
+ADD_CREDIT_HAS_CREDIT = "add_credit_has_credit"
+ADD_CREDIT_HAS_CRIMINAL = "add_credit_has_criminal"
+ADD_CREDIT_UNDERAGE = "add_credit_underage"
+
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     Команда /start: Показать кнопки регистрации и входа.
     """
     await update.message.reply_text(
-        "Добро пожаловать! Выберите действие:",
+        "Добро пожаловать! Я первый чат-бот со встроенным смарт-контрактом. \n"
+        "Я могу помочь вам зарегистрироваться, войти или добавить кредитную историю. \n"
+        "Выберите действие:",
         reply_markup=start_markup
     )
 
-async def register(update: Update, context: ContextTypes.DEFAULT_TYPE):
+def handle_user_state(state, update, context):
     """
-    Начало процесса регистрации.
+    Обработчик состояний пользователя.
     """
-    await update.message.reply_text(
-        "Начинаем регистрацию.\nВведите ваше ФИО:",
-        reply_markup=ReplyKeyboardRemove()
-    )
-    context.user_data['state'] = 'register_name'
-
-async def login(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Начало процесса входа.
-    """
-    await update.message.reply_text(
-        "Вход.\nВведите ваш Telegram ID:",
-        reply_markup=ReplyKeyboardRemove()
-    )
-    context.user_data['state'] = 'login_id'
-
-async def add_credit_history_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Начало процесса добавления кредитной истории.
-    """
-    with get_db() as db:
-        user = db.query(User).filter_by(telegram_id=str(update.effective_user.id)).first()
-
-        if not user:
-            await update.message.reply_text("Вы не зарегистрированы! Используйте /start для регистрации.")
-            return
-
-        await update.message.reply_text(
-            "Начинаем добавление кредитной истории.\nВведите название организации:",
-            reply_markup=ReplyKeyboardRemove()
-        )
-        context.user_data['state'] = 'add_credit_history_organization'
-
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Обработка сообщений пользователя в зависимости от текущего состояния.
-    """
-    user_state = context.user_data.get('state')
     text = update.message.text.strip()
 
-    if user_state == 'register_name':
+    if state == REGISTER_NAME:
         context.user_data['name'] = text
-        await update.message.reply_text("Введите пароль:")
-        context.user_data['state'] = 'register_password'
+        context.user_data['state'] = REGISTER_PASSWORD
+        return "Введите пароль:"
 
-    elif user_state == 'register_password':
-        context.user_data['password'] = text
-        await update.message.reply_text("Введите ваш Telegram ID (числовой):")
-        context.user_data['state'] = 'register_id'
+    elif state == REGISTER_PASSWORD:
+        name = context.user_data['name']
+        password = text
 
-    elif user_state == 'register_id':
-        telegram_id = text
-        if not telegram_id.isdigit():
-            await update.message.reply_text("Telegram ID должен быть числом. Повторите ввод Telegram ID:")
-            return
-        name = context.user_data.get('name')
-        password = context.user_data.get('password')
-        user_create = UserCreate(
-            telegram_id=telegram_id,
-            name=name,
-            password=password
-        )
         with get_db() as db:
+            existing_user = db.query(User).filter_by(name=name).first()
+            if existing_user:
+                return f"Имя {name} уже занято. Попробуйте другое."
             try:
+                user_create = UserCreate(name=name, password=password)
                 user = create_user(db, user_create)
-                await update.message.reply_text(
-                    f"Поздравляем, {user.name}! Вы успешно зарегистрированы.",
-                    reply_markup=start_markup
-                )
+                context.user_data.clear()
+                return f"Поздравляем, {user.name}! Вы успешно зарегистрированы."
             except Exception as e:
                 logger.error(f"Ошибка при регистрации пользователя: {e}")
-                await update.message.reply_text("Произошла ошибка при регистрации. Попробуйте снова.")
-        context.user_data.clear()
+                return "Произошла ошибка при регистрации. Попробуйте снова."
 
-    elif user_state == 'login_id':
-        telegram_id = text
-        context.user_data['login_id'] = telegram_id
-        await update.message.reply_text("Введите пароль:")
-        context.user_data['state'] = 'login_password'
+    elif state == LOGIN_ID:
+        context.user_data['login_id'] = text
+        context.user_data['state'] = LOGIN_PASSWORD
+        return "Введите пароль:"
 
-    elif user_state == 'login_password':
+    elif state == LOGIN_PASSWORD:
+        login_id = context.user_data['login_id']
         password = text
-        telegram_id = context.user_data.get('login_id')
         with get_db() as db:
-            user = authenticate_user(db, telegram_id, password)
+            user = authenticate_user(db, login_id, password)
             if user:
-                await update.message.reply_text(
-                    f"Добро пожаловать, {user.name}!",
-                    reply_markup=start_markup
-                )
+                context.user_data.clear()
+                return f"Добро пожаловать, {user.name}!"
             else:
-                await update.message.reply_text(
-                    "Неверный Telegram ID или пароль. Попробуйте снова.",
-                    reply_markup=start_markup
-                )
-        context.user_data.clear()
+                return "Неверные учетные данные. Попробуйте снова."
 
-    elif user_state == 'add_credit_history_organization':
+    elif state == ADD_CREDIT_ORGANIZATION:
         context.user_data['organization'] = text
-        await update.message.reply_text("Есть ли у вас кредиты в этой организации? (да/нет)")
-        context.user_data['state'] = 'add_credit_history_has_credit'
+        context.user_data['state'] = ADD_CREDIT_HAS_CREDIT
+        return "Есть ли у вас кредиты в этой организации? (да/нет)"
 
-    elif user_state == 'add_credit_history_has_credit':
-        response = text.lower()
-        if response in ["да", "yes"]:
-            context.user_data['has_credit'] = True
-        elif response in ["нет", "no"]:
-            context.user_data['has_credit'] = False
-        else:
-            await update.message.reply_text("Пожалуйста, ответьте 'да' или 'нет':")
-            return
-        await update.message.reply_text("Есть ли у вас судимости? (да/нет)")
-        context.user_data['state'] = 'add_credit_history_has_criminal_record'
+    elif state == ADD_CREDIT_HAS_CREDIT:
+        context.user_data['has_credit'] = text.lower() in ["да", "yes"]
+        context.user_data['state'] = ADD_CREDIT_HAS_CRIMINAL
+        return "Есть ли у вас судимости? (да/нет)"
 
-    elif user_state == 'add_credit_history_has_criminal_record':
-        response = text.lower()
-        if response in ["да", "yes"]:
-            context.user_data['has_criminal_record'] = True
-        elif response in ["нет", "no"]:
-            context.user_data['has_criminal_record'] = False
-        else:
-            await update.message.reply_text("Пожалуйста, ответьте 'да' или 'нет':")
-            return
-        await update.message.reply_text("Вы несовершеннолетний? (да/нет)")
-        context.user_data['state'] = 'add_credit_history_underage'
+    elif state == ADD_CREDIT_HAS_CRIMINAL:
+        context.user_data['has_criminal_record'] = text.lower() in ["да", "yes"]
+        context.user_data['state'] = ADD_CREDIT_UNDERAGE
+        return "Вы несовершеннолетний? (да/нет)"
 
-    elif user_state == 'add_credit_history_underage':
-        response = text.lower()
-        if response in ["да", "yes"]:
-            context.user_data['is_underage'] = True
-        elif response in ["нет", "no"]:
-            context.user_data['is_underage'] = False
-        else:
-            await update.message.reply_text("Пожалуйста, ответьте 'да' или 'нет':")
-            return
+    elif state == ADD_CREDIT_UNDERAGE:
+        context.user_data['is_underage'] = text.lower() in ["да", "yes"]
+        organization = context.user_data['organization']
+        has_credit = context.user_data['has_credit']
+        has_criminal_record = context.user_data['has_criminal_record']
+        is_underage = context.user_data['is_underage']
 
-        # Создание записи кредитной истории
         credit_history_create = CreditHistoryCreate(
-            organization=context.user_data['organization'],
-            has_credit=context.user_data['has_credit'],
-            has_criminal_record=context.user_data['has_criminal_record'],
-            is_underage=context.user_data['is_underage']
+            organization=organization,
+            has_credit=has_credit,
+            has_criminal_record=has_criminal_record,
+            is_underage=is_underage
         )
 
         with get_db() as db:
-            credit_history = create_credit_history(db, credit_history_create, user.id)
-            await update.message.reply_text(
-                f"Кредитная история для {credit_history.organization} добавлена.",
-                reply_markup=start_markup
-            )
-        context.user_data.clear()
-
-    elif text == "Зарегистрироваться":
-        await register(update, context)
-
-    elif text == "Войти":
-        await login(update, context)
-
-    elif user_state in ['awaiting_amount', 'confirming']:
-        # Существующая логика подачи заявки на кредит
-        with get_db() as db:
-            user = db.query(User).filter_by(telegram_id=str(update.effective_user.id)).first()
-
-            if not user:
-                await update.message.reply_text("Вы не зарегистрированы! Используйте /start для регистрации.")
-                return
-
-            state = get_user_state(user)
-
-            if not state or not state.current_step:
-                await update.message.reply_text("Я не знаю, что вы хотите. Используйте /loan для подачи заявки на кредит.")
-                return
-
-            if state.current_step == "awaiting_amount":
-                try:
-                    amount = float(text)
-                    if amount <= 0:
-                        raise ValueError
-                except ValueError:
-                    await update.message.reply_text("Пожалуйста, введите корректную положительную сумму кредита:")
-                    return
-
-                # Обновление состояния с введённой суммой
-                state.data['amount'] = amount
-                state.current_step = "confirming"
-                update_user_state(db, user.id, state)
-
-                await update.message.reply_text(f"Вы хотите подать заявку на кредит сумму {amount}. Подтвердите? (да/нет)")
-
-            elif state.current_step == "confirming":
-                response = text.lower()
-                if response in ["да", "yes", "подтвердить"]:
-                    amount = state.data.get('amount')
-                    if validate_loan_request(user):
-                        loan_request_create = LoginRequestCreate(user_id=user.id, amount=amount)
-                        create_login_request(db, loan_request_create)
-                        await update.message.reply_text(f"Ваша заявка на кредит сумму {amount} одобрена!")
-                    else:
-                        await update.message.reply_text("Кредит отклонён по условиям.")
-                    # Очистка состояния
-                    update_user_state(db, user.id, UserState())
-                elif response in ["нет", "no", "отмена"]:
-                    await update.message.reply_text("Процесс подачи заявки отменён.")
-                    # Очистка состояния
-                    update_user_state(db, user.id, UserState())
-                else:
-                    await update.message.reply_text("Пожалуйста, ответьте 'да' или 'нет' для подтверждения заявки.")
-            else:
-                await update.message.reply_text("Неизвестное состояние. Попробуйте снова.")
+            user_id = 1  
+            create_credit_history(db, credit_history_create, user_id)
+            context.user_data.clear()
+            return f"Кредитная история для {organization} добавлена."
 
     else:
+        return "Неизвестное состояние. Попробуйте снова."
+
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    text = update.message.text.strip().lower()
+    user_state = context.user_data.get('state', None)
+
+    if text in ["привет", "здравствуйте"]:
         await update.message.reply_text(
-            "Неизвестная команда. Пожалуйста, используйте /start для начала."
+            "Привет! Я первый чат-бот со встроенным смарт-контрактом. Чем могу помочь?"
         )
+        return
+
+    if text in ["зарегистрироваться", "войти", "добавить кредитную историю"]:
+        if text == "зарегистрироваться":
+            context.user_data['state'] = REGISTER_NAME
+            await update.message.reply_text("Начинаем регистрацию. Введите ваше ФИО:")
+        elif text == "войти":
+            context.user_data['state'] = LOGIN_ID
+            await update.message.reply_text("Вход. Введите ваш ID:")
+        elif text == "добавить кредитную историю":
+            context.user_data['state'] = ADD_CREDIT_ORGANIZATION
+            await update.message.reply_text("Введите название организации:")
+        return
+
+    if user_state:
+        response = handle_user_state(user_state, update, context)
+        await update.message.reply_text(response)
+    else:
+        await update.message.reply_text("Я не понял ваш запрос. Попробуйте снова или используйте /help.")
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Команда /help: Справка по командам.
-    """
-    help_text = (
+
+    await update.message.reply_text(
         "Вот доступные команды:\n"
         "/start - начать работу с ботом\n"
-        "Выберите действие: Зарегистрироваться или Войти\n"
-        "/loan - подать заявку на кредит\n"
-        "/add_credit_history - добавить кредитную историю\n"
         "/help - показать справку"
     )
-    await update.message.reply_text(help_text)
 
 def main():
-    """
-    Основная функция для запуска бота.
-    """
-    # Инициализация базы данных
+
     initialize_database()
 
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
-    # Регистрация обработчиков команд
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CommandHandler("help", help_command))
-    app.add_handler(CommandHandler("login", login))
-    app.add_handler(CommandHandler("add_credit_history", add_credit_history_command))
-
-    
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    
     logger.info("Бот запущен!")
     app.run_polling()
 

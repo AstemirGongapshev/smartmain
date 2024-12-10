@@ -1,11 +1,13 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.ext.declarative import declarative_base
-import os
+from contextlib import contextmanager  
+
 
 Base = declarative_base()
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///smart_bot.db")
+
+DATABASE_URL = "sqlite:///smart_bot.db" 
 
 engine = create_engine(
     DATABASE_URL,
@@ -16,13 +18,14 @@ engine = create_engine(
 SessionLocal = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
 
 def init_db():
-    # Импорт моделей для регистрации таблиц
+    
     import models
     Base.metadata.create_all(bind=engine)
 
+@contextmanager 
 def get_db():
     """
-    Генератор для получения сессии базы данных.
+    Контекстный менеджер для получения сессии базы данных.
     """
     db = SessionLocal()
     try:

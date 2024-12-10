@@ -1,5 +1,3 @@
-# smart_bot/models.py
-
 from sqlalchemy import Column, Integer, String, Boolean, Float, DateTime, ForeignKey, JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -9,17 +7,16 @@ class User(Base):
     __tablename__ = 'users'
 
     id = Column(Integer, primary_key=True, index=True)
-    telegram_id = Column(String, unique=True, index=True, nullable=False)
     name = Column(String, nullable=False)
-    password_hash = Column(String, nullable=False)  # Хешированный пароль
+    password_hash = Column(String, nullable=False)  
     credit_history = Column(Boolean, default=False)
     criminal_record = Column(Boolean, default=False)
-    underage = Column(Boolean, default=False)  # Поле для несовершеннолетнего
+    underage = Column(Boolean, default=False)  
     active_credit = Column(Boolean, default=False)
-    state = Column(JSON, nullable=True)  # Поле для хранения состояния
+    state = Column(JSON, nullable=True) 
 
     login_requests = relationship("LoginRequest", back_populates="user")
-    credit_histories = relationship("CreditHistory", back_populates="user")  # Связь с CreditHistory
+    credit_histories = relationship("CreditHistory", back_populates="user") 
 
 class LoginRequest(Base):
     __tablename__ = 'loan_requests'

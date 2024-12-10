@@ -3,9 +3,8 @@ from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any
 
 class UserCreate(BaseModel):
-    telegram_id: str
     name: str
-    passwords: str
+    password: int
 
 class UserState(BaseModel):
     current_step: Optional[str] = None
@@ -17,7 +16,7 @@ class LoginRequestCreate(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    telegram_id: str
+    name: str
     password: str
 
 

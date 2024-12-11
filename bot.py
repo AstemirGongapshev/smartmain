@@ -24,8 +24,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-def initialize_database():
-    init_db()
+
+init_db()
 
 start_keyboard = [['Зарегистрироваться', 'Войти'], ['Добавить кредитную историю']]
 start_markup = ReplyKeyboardMarkup(start_keyboard, one_time_keyboard=True, resize_keyboard=True)
@@ -40,9 +40,7 @@ ADD_CREDIT_HAS_CRIMINAL = "add_credit_has_criminal"
 ADD_CREDIT_UNDERAGE = "add_credit_underage"
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Команда /start: Показать кнопки регистрации и входа.
-    """
+
     await update.message.reply_text(
         "Добро пожаловать! Я первый чат-бот со встроенным смарт-контрактом. \n"
         "Я могу помочь вам зарегистрироваться, войти или добавить кредитную историю. \n"
@@ -51,9 +49,6 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 def handle_user_state(state, update, context):
-    """
-    Обработчик состояний пользователя.
-    """
     text = update.message.text.strip()
 
     if state == REGISTER_NAME:
@@ -130,7 +125,7 @@ def handle_user_state(state, update, context):
             return f"Кредитная история для {organization} добавлена."
 
     else:
-        return "Неизвестное состояние. Попробуйте снова."
+        return "Что то пошло не так. Попробуйте снова."
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
@@ -146,7 +141,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if text in ["зарегистрироваться", "войти", "добавить кредитную историю"]:
         if text == "зарегистрироваться":
             context.user_data['state'] = REGISTER_NAME
-            await update.message.reply_text("Начинаем регистрацию. Введите ваше ФИО:")
+            await update.message.reply_text("Начинаем регистрацию. Пожалуйста скажите как вас зовут:")
         elif text == "войти":
             context.user_data['state'] = LOGIN_ID
             await update.message.reply_text("Вход. Введите ваш ID:")
@@ -159,7 +154,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         response = handle_user_state(user_state, update, context)
         await update.message.reply_text(response)
     else:
-        await update.message.reply_text("Я не понял ваш запрос. Попробуйте снова или используйте /help.")
+        await update.message.reply_text("Упс!. Я такого не знаю давайте вернемся к делу")
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
@@ -171,7 +166,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
 
-    initialize_database()
+    init_db()
 
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 

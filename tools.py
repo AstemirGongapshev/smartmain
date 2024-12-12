@@ -77,6 +77,6 @@ def get_user_credit_history(db: Session, user_id: int) -> List[CreditHistory]:
     return db.query(CreditHistory).filter_by(user_id=user_id).all()
 
 
-def user_exists(db: Session, email: str) -> bool:
+def user_exists(db: Session, name: str) -> bool:
     
-    return db.query(User).filter_by(email=email).first() is not None
+    return db.query(User).filter_by(name=name).first() 

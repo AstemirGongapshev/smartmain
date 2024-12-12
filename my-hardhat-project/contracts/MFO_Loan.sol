@@ -1,13 +1,20 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.28;
 
 contract MFO_Loan {
     struct Loan {
         uint256 amount;
+        uint256 repaymentAmount;
+        uint256 dueDate;
+        bool isRepaid;
+    }
+
+    mapping(address => Loan) public loans;
+
     address public owner;
 
-    event LoginRequested(address indexed borrower, uint256 amount, uint256 repaymentAmount, uint256 dueDate);
-    event LoginRepaid(address indexed borrower, uint256 amount);
+    event LoanRequested(address indexed borrower, uint256 amount, uint256 repaymentAmount, uint256 dueDate);
+    event LoanRepaid(address indexed borrower, uint256 amount);
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Only the owner can perform this action");
@@ -56,10 +63,3 @@ contract MFO_Loan {
         return loans[borrower];
     }
 }
-
-        uint256 repaymentAmount;
-        uint256 dueDate;
-        bool isRepaid;
-    }
-
-    mapping(address => Loan) public loans;

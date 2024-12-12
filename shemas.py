@@ -2,7 +2,6 @@ from pydantic import BaseModel, Field, EmailStr, validator
 from typing import Optional, Dict, Any
 from datetime import datetime
 
-# User models
 class UserCreate(BaseModel):
     name: str = Field(..., description="Имя пользователя")
     email: EmailStr = Field(..., description="Электронная почта пользователя")
@@ -33,19 +32,19 @@ class UserResponse(BaseModel):
         orm_mode = True
 
 # LoginRequest models
-class LoginRequestCreate(BaseModel):
-    user_id: int = Field(..., description="ID пользователя")
-    amount: float = Field(..., gt=0, description="Сумма кредита должна быть положительной")
+# class LoginRequestCreate(BaseModel):
+#     user_id: int = Field(..., description="ID пользователя")
+#     amount: float = Field(..., gt=0, description="Сумма кредита должна быть положительной")
 
-class LoginRequestResponse(BaseModel):
-    id: int
-    user_id: int
-    amount: float
-    status: str
-    created_at: datetime
+# class LoginRequestResponse(BaseModel):
+#     id: int
+#     user_id: int
+#     amount: float
+#     status: str
+#     created_at: datetime
 
-    class Config:
-        orm_mode = True
+#     class Config:
+#         orm_mode = True
 
 # CreditHistory models
 class CreditHistoryCreate(BaseModel):

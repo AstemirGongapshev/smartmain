@@ -8,7 +8,7 @@ from telegram.ext import (
     filters,
     CallbackQueryHandler
 )
-
+from shemas import UserCreate, CreditHistoryCreate
 from db import get_db, init_db
 from tools import (
     create_user,
@@ -28,15 +28,13 @@ from prompts import (
     ANOTHER_THEME
 )
 
-# Инициализация БД
+
 init_db()
 
-# Настройка логирования в отдельный файл process.log
+
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO,
-    filename='process.log',
-    filemode='a'
 )
 logger = logging.getLogger(__name__)
 
@@ -72,13 +70,20 @@ class BotScenario:
         await query.answer()
         data = query.data
 
+
+        logging.info(f'This data:{data}')
+        logging.info(f'This query: {query}')
+        # logging.info(update.message.text.strip())
+
+
         if data == "login_flow":
+            logging.info(context.user_data)
             context.user_data['state'] = 'await_login_input'
-            await query.edit_message_text("Введите данные для входа в формате: Имя,Пароль")
+            await query.edit_message_text(CHECK_NAME_PASSWORD)
 
         elif data == "register_flow":
             context.user_data['state'] = 'await_register_input'
-            await query.edit_message_text("Введите данные для регистрации в формате: Имя,Email,+7XXX...,Пароль")
+            await query.edit_message_text(CREATE_ACCOUNT)
 
         elif data == "menu_credit_data":
             context.user_data['state'] = 'await_credit_data'
@@ -96,8 +101,13 @@ class BotScenario:
         text = update.message.text.strip()
         state = context.user_data.get('state')
 
-      
-        if state == 'await_login_input':
+        logging.info(f'This user text:{text}')
+
+        if text == "Привет":
+            await update.message.reply_text(GREATING)
+            context.user_data['state'] = 'login_flow'
+
+        elif state == 'await_login_input':
             try:
                 name, password = text.split(",")
                 name = name.strip()
@@ -125,19 +135,16 @@ class BotScenario:
                 email = email.strip()
                 phone_number = phone_number.strip()
                 password = password.strip()
+                new_user = UserCreate(
+                                        name=name,
+                                        email=email,
+                                        phone_number=phone_number,
+                                        password=password
+                                    )
 
-             
-                if not phone_number.startswith("+7"):
-                    await update.message.reply_text("Номер телефона должен начинаться с +7")
-                    return
 
                 with get_db() as db:
-                    create_user(db, {
-                        "name": name,
-                        "email": email,
-                        "phone_number": phone_number,
-                        "password": password
-                    })
+                    create_user(db, new_user)
                 await update.message.reply_text("Успешная регистрация!")
                 context.user_data.clear()
                 
@@ -172,17 +179,13 @@ class BotScenario:
 
                 debt_to_income_ratio = (monthly_expenses_val / monthly_income_val) if monthly_income_val > 0 else None
 
-                credit_history_data = {
-                    "organization": organization,
-                    "has_credit": has_credit_bool,
-                    "has_criminal_record": has_criminal_record_bool,
-                    "is_underage": is_underage_bool,
-                    "employment_status": employment_status,
-                    "monthly_expenses": monthly_expenses_val,
-                    "debt_to_income_ratio": debt_to_income_ratio,
-                    "loan_purpose": loan_purpose,
-                    "credit_score": credit_score
-                }
+                credit_history_data = CreditHistoryCreate(organization=organization,
+                                                          has_credit_bool=has_credit_bool,
+                                                          has_criminal_record_bool=has_criminal_record_bool,
+                                                          is_underage_bool=is_underage_bool,
+                                                          employment_status=employment_status,
+                                                          monthly_expenses=monthly_expenses_val,
+                                                          debt_to_income_ratio=debt_to_income_ratio,)
 
                 with get_db() as db:
                     user_id = 1  
@@ -190,7 +193,7 @@ class BotScenario:
 
                 await update.message.reply_text("Кредитная история добавлена успешно!")
                 context.user_data.clear()
-                # Выводим меню снова
+                
                 await self.show_post_login_menu(update, context)
             except Exception as e:
                 self.logger.error(f"Ошибка добавления кредитной истории: {e}")

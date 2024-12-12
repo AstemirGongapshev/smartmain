@@ -18,15 +18,10 @@ engine = create_engine(
 SessionLocal = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
 
 def init_db():
-    
-    import models
     Base.metadata.create_all(bind=engine)
 
 @contextmanager 
 def get_db():
-    """
-    Контекстный менеджер для получения сессии базы данных.
-    """
     db = SessionLocal()
     try:
         yield db

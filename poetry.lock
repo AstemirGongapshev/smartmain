@@ -1366,6 +1366,21 @@ build-docs = ["cloud-sptheme (>=1.10.1)", "sphinx (>=1.6)", "sphinxcontrib-fullt
 totp = ["cryptography"]
 
 [[package]]
+name = "phe"
+version = "1.5.0"
+description = "Partially Homomorphic Encryption library for Python"
+optional = false
+python-versions = "*"
+files = [
+    {file = "phe-1.5.0-py2.py3-none-any.whl", hash = "sha256:a0d0098e22474b3027cbc0b05e9de2290bc603f1728bf401f498abbdbe795391"},
+    {file = "phe-1.5.0.tar.gz", hash = "sha256:992fb7091d2427f0d9733946f8f350acdd4d1d012057f2aad364ba79f970339c"},
+]
+
+[package.extras]
+cli = ["click"]
+examples = ["numpy", "scipy", "sklearn"]
+
+[[package]]
 name = "propcache"
 version = "0.2.1"
 description = "Accelerated property cache"
@@ -2262,4 +2277,4 @@ propcache = ">=0.2.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "452e26f600c23d727a3cc21a1110cd8db983e5f305480bf0bab530a030fd7db5"
+content-hash = "323582a9470fe2245d649885c264ffc8fc9f20b13faaf653086d57defeab614d"

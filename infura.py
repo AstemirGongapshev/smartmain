@@ -9,6 +9,6 @@ web3 = Web3(Web3.HTTPProvider(INFURA_URL))
 
 
 if web3.is_connected():
-    print("Успешно подключено к Ethereum через Infura!")
+    print("Successfully Ethereum  Infura!")
 else:
-    print("Не удалось подключиться к Ethereum.")
+    print("OPS Fail!")

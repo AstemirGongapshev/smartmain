@@ -14,6 +14,7 @@ sqlalchemy = "^2.0.36"
 passlib = {extras = ["bcrypt"], version = "^1.7.4"}
 web3 = "^7.6.0"
 py-solc-x = "^2.0.3"
+phe = "^1.5.0"
 
 
 [build-system]

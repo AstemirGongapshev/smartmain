@@ -1,20 +1,28 @@
 from sqlalchemy.orm import Session
-from models import User, CreditHistory
-from shemas import UserCreate, CreditHistoryCreate
+from DataBase.data_models import User, CreditHistory
+from models import UserCreate, CreditHistoryCreate
 from typing import Optional, List
+# from passlib.hash import bcrypt
+from hashlib import sha256
+from Secure.utils import encrypt_data
+from base_exceptions import UserAlreadyExistsException, UserNotFoundException, EncryptionException
+
+
+
 
 
 def create_user(db: Session, user_create: UserCreate) -> User:
-    
-    existing_user = db.query(User).filter_by(email=user_create.email).first()
+    existing_user = db.query(User).filter_by(name=user_create.name).first()
     if existing_user:
-        raise ValueError("Пользователь с таким email уже существует.")
+        raise UserAlreadyExistsException(name=user_create.name)
 
+    hash_password = sha256(user_create.password.encode()).hexdigest()   
+    
     user = User(
         name=user_create.name,
         email=user_create.email,
         phone_number=user_create.phone_number,
-        password_hash=user_create.password  
+        password=hash_password  
     )
     db.add(user)
     db.commit()
@@ -24,39 +32,39 @@ def create_user(db: Session, user_create: UserCreate) -> User:
 
 def add_credit_history(db: Session, user_id: int, credit_history_create: CreditHistoryCreate) -> CreditHistory:
 
-    user = db.query(User).filter_by(id=user_id).first()
-    if not user:
-        raise ValueError("Пользователь не найден.")
+
+    try:
+        encrypted_pasport_data = encrypt_data(credit_history_create.pasport_data)
+    except Exception as e:
+        raise EncryptionException(f"Не удалось зашифровать паспортные данные. Ошибка: {str(e)}")
 
     credit_history = CreditHistory(
         user_id=user_id,
-        organization=credit_history_create.organization,
         has_credit=credit_history_create.has_credit,
-        has_criminal_record=credit_history_create.has_criminal_record,
-        is_underage=credit_history_create.is_underage,
-        credit_score=credit_history_create.credit_score,
+        income=credit_history_create.income,
+        pasport_data=encrypted_pasport_data,
         employment_status=credit_history_create.employment_status,
-        monthly_expenses=credit_history_create.monthly_expenses,
-        debt_to_income_ratio=credit_history_create.debt_to_income_ratio,
         loan_purpose=credit_history_create.loan_purpose
     )
+
     db.add(credit_history)
     db.commit()
     db.refresh(credit_history)
     return credit_history
 
 
-def delete_user_account(db: Session, user_id: int):
 
-    user = db.query(User).filter_by(id=user_id).first()
+def delete_user_account(db: Session, name: int):
+
+    user = db.query(User).filter_by(name=name).first()
     if not user:
         raise ValueError("Пользователь не найден.")
 
-    db.query(CreditHistory).filter_by(user_id=user_id).delete()
+    db.query(CreditHistory).filter_by(name=name).delete()
     db.delete(user)
     db.commit()
 
-# 4. Изменение пароля
+
 def update_user_password(db: Session, user_id: int, new_password: str):
 
     user = db.query(User).filter_by(id=user_id).first()
@@ -79,4 +87,5 @@ def get_user_credit_history(db: Session, user_id: int) -> List[CreditHistory]:
 
 def user_exists(db: Session, name: str) -> bool:
     
-    return db.query(User).filter_by(name=name).first() 
+    return  db.query(User).filter_by(name=name).first() 
+

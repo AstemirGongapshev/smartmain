@@ -8,14 +8,15 @@ from telegram.ext import (
     filters,
     CallbackQueryHandler
 )
-from shemas import UserCreate, CreditHistoryCreate
-from db import get_db, init_db
-from tools import (
+from models import UserCreate, CreditHistoryCreate
+from DataBase.db import get_db, init_db
+from DataBase.tools import (
     create_user,
     add_credit_history,
     user_exists
 )
-from prompts import (
+from DataBase.data_models import User, CreditHistory
+from DataBase.prompts import (
     GREATING,
     CHECK_NAME_PASSWORD,
     CREATE_ACCOUNT,
@@ -71,8 +72,8 @@ class BotScenario:
         data = query.data
 
 
-        logging.info(f'This data:{data}')
-        logging.info(f'This query: {query}')
+        # logging.info(f'This data:{data}')
+        # logging.info(f'This query: {query}')
         # logging.info(update.message.text.strip())
 
 
@@ -131,16 +132,13 @@ class BotScenario:
           
             try:
                 name, email, phone_number, password = text.split(",")
-                name = name.strip()
-                email = email.strip()
-                phone_number = phone_number.strip()
-                password = password.strip()
-                new_user = UserCreate(
-                                        name=name,
-                                        email=email,
-                                        phone_number=phone_number,
-                                        password=password
-                                    )
+                creds_new_user = dict(
+                                name=name.strip(),
+                                email=email.strip(),
+                                phone_number=phone_number.strip(),
+                                password=password.strip()     
+                                ) 
+                new_user = UserCreate(**creds_new_user)
 
 
                 with get_db() as db:
@@ -155,50 +153,47 @@ class BotScenario:
                 context.user_data.clear()
 
         elif state == 'await_credit_data':
-
             try:
+                
                 data = text.split(",")
-                if len(data) < 8:
-                    await update.message.reply_text("Пожалуйста, введите все данные через запятую.")
+                if len(data) < 5:
+                    await update.message.reply_text("Пожалуйста, введите все данные через запятую: есть ли кредит, доход, паспортные данные, занятость, цель кредита.")
                     return
-                (organization, has_credit, has_criminal_record, is_underage,
-                 employment_status, monthly_income, monthly_expenses, loan_purpose) = map(str.strip, data)
 
+                
+                name_, has_credit, income, pasport_data, employment_status, loan_purpose = map(str.strip, data)
+
+                
                 has_credit_bool = has_credit.lower() in ["да", "yes"]
-                has_criminal_record_bool = has_criminal_record.lower() in ["да", "yes"]
-                is_underage_bool = is_underage.lower() in ["да", "yes"]
-                monthly_income_val = float(monthly_income)
-                monthly_expenses_val = float(monthly_expenses)
+                income_val = int(income)  
+                credit_info = dict( 
+                    has_credit=has_credit_bool,
+                    income=income_val,
+                    pasport_data=pasport_data,
+                    employment_status=employment_status,
+                    loan_purpose=loan_purpose
+                )
+                
+                credit_history_data = CreditHistoryCreate(**credit_info)
 
-                if monthly_income_val > 50000 and not has_credit_bool:
-                    credit_score = 10.0
-                elif monthly_income_val > 50000 or not has_credit_bool:
-                    credit_score = 5.0
-                else:
-                    credit_score = 2.5
-
-                debt_to_income_ratio = (monthly_expenses_val / monthly_income_val) if monthly_income_val > 0 else None
-
-                credit_history_data = CreditHistoryCreate(organization=organization,
-                                                          has_credit_bool=has_credit_bool,
-                                                          has_criminal_record_bool=has_criminal_record_bool,
-                                                          is_underage_bool=is_underage_bool,
-                                                          employment_status=employment_status,
-                                                          monthly_expenses=monthly_expenses_val,
-                                                          debt_to_income_ratio=debt_to_income_ratio,)
-
+                
                 with get_db() as db:
-                    user_id = 1  
-                    add_credit_history(db, user_id, credit_history_data)
+                    if user_exists(db,name_):
+                        user_id = (db.query(User).filter_by(name=name_).first()).id
 
-                await update.message.reply_text("Кредитная история добавлена успешно!")
+                add_credit_history(db, user_id, credit_history_data)
+
+                await update.message.reply_text("Кредитная история успешно добавлена!")
                 context.user_data.clear()
                 
                 await self.show_post_login_menu(update, context)
+            except ValueError as e:
+                self.logger.error(f"Error:{str(e)}")
+                await update.message.reply_text(f"Упс, Ошибка обработки данных")
             except Exception as e:
-                self.logger.error(f"Ошибка добавления кредитной истории: {e}")
-                await update.message.reply_text("Ошибка при добавлении кредитной истории.")
-                context.user_data.clear()
+                self.logger.error(f"Ошибка добавления кредитной истории: {str(e)}")
+                await update.message.reply_text(f"Что то пошло не так, произошла ошибка:")
+
 
         else:
           

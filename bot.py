@@ -196,8 +196,8 @@ class BotScenario:
 
 
         else:
-          
-            await update.message.reply_text(ANOTHER_THEME[0])
+            import random
+            await update.message.reply_text(random.choice(ANOTHER_THEME))
 
     async def show_post_login_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
 

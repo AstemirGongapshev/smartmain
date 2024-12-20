@@ -6,6 +6,7 @@ from typing import Optional, List
 from hashlib import sha256
 from Secure.utils import encrypt_data
 from base_exceptions import UserAlreadyExistsException, UserNotFoundException, EncryptionException
+from DataBase.db import get_db
 
 
 
@@ -85,7 +86,11 @@ def get_user_credit_history(db: Session, user_id: int) -> List[CreditHistory]:
     return db.query(CreditHistory).filter_by(user_id=user_id).all()
 
 
-def user_exists(db: Session, name: str) -> bool:
-    
-    return  db.query(User).filter_by(name=name).first() 
+def user_exists(db, name: str, password:str) -> bool:
+
+    user_name = db.query(User).filter_by(name=name).first()
+    password_hash = sha256(password.encode()).hexdigest()
+    print(user_name, password_hash)
+    user_password_hashed = db.query(User).filter_by(password=password_hash).first()
+    return   user_name, user_password_hashed
 

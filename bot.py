@@ -1,6 +1,7 @@
 import logging
-import subprocess
-import re
+import asyncio
+import random
+import os
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import (
     ApplicationBuilder,
@@ -10,6 +11,7 @@ from telegram.ext import (
     filters,
     CallbackQueryHandler
 )
+import time 
 from models import UserCreate, CreditHistoryCreate
 from DataBase.db import get_db, init_db
 from DataBase.tools import (
@@ -17,7 +19,7 @@ from DataBase.tools import (
     add_credit_history,
     user_exists
 )
-import os
+import random
 from DataBase.data_models import User, CreditHistory
 from DataBase.prompts import (
     GREATING,
@@ -29,7 +31,9 @@ from DataBase.prompts import (
     STORY_CLEARED_MSG,
     ERROR_REGISTRATION_MSG,
     ERROR_LOGIN_MSG,
-    ANOTHER_THEME
+    ANOTHER_THEME,
+    COMPILE,
+    DEPLOY
 )
 
 
@@ -90,16 +94,39 @@ class BotScenario:
             context.user_data['state'] = 'await_credit_data'
             await query.edit_message_text(ADD_CREDIT_ORGANIZATION_MSG)
 
+
+
         elif data == "menu_microloan":
+           
             await query.edit_message_text(OFFER_MICROLOAN_MSG)
-            await query.message.reply_text("Отлично, смарт-контракт успешно скомпелирован и запушен:")
             
+            for i in range(5, 0, -1):
+                await asyncio.sleep(1) 
+                await query.edit_message_text(f"Компилируем... {i}")
+            
+            await asyncio.sleep(1)  
+            await query.edit_message_text("Компиляция завершена!")
+            for i in range(3, 0, -1):
+                await asyncio.sleep(1) 
+                await query.edit_message_text(f"Деплоим... {i}")
 
-            photo_path = os.path.join("Photo", "сontract_2.png")
-            with open(photo_path, "rb") as photo:
-                await query.message.reply_photo(photo=photo)
+            await query.edit_message_text("Деплой завершён!")
+            await asyncio.sleep(1)  
+            await query.message.reply_text("Отлично, смарт-контракт успешно скомпилирован и запущен:")
 
+            SAMPLE = ["contract.png", "contract_2.png", "contract_3.png"]
+            rand = random.choice(SAMPLE)
+            photo_path = os.path.join("Photo", rand)
+
+            if os.path.exists(photo_path):
+                with open(photo_path, "rb") as photo:
+                    await query.message.reply_photo(photo=photo)
+            else:
+                await query.message.reply_text("Фото смарт-контракта не найдено.")
+
+            # Возвращаемся в главное меню
             await self.show_post_login_menu(update, context)
+
 
         elif data == "menu_explain_smart":
             # video_path = os.path.join("Photo", "my_video.mp3")
@@ -110,7 +137,7 @@ class BotScenario:
             photo_path_info = os.path.join("Photo", "info.jpg")
             with open(photo_path_info, "rb") as photo:
                 await query.message.reply_photo(photo=photo)
-            await self.show_post_login_menu(update, context)
+                context.user_date["state"] = "menu_explain_smart"
 
         else:
             await query.edit_message_text("Неизвестный выбор.")
@@ -124,8 +151,8 @@ class BotScenario:
         if text == "Привет" and not state:
       
             await update.message.reply_text(GREATING)
-            context.user_data['state'] = 'await_login_input'
-            await update.message.reply_text(CHECK_NAME_PASSWORD)
+            # context.user_data['state'] = 'await_login_input'
+            # await update.message.reply_text(CHECK_NAME_PASSWORD)
             return
 
        
@@ -224,11 +251,13 @@ class BotScenario:
             except Exception as e:
                 self.logger.error(f"Ошибка добавления кредитной истории: {str(e)}")
                 await update.message.reply_text("Произошла ошибка, попробуйте снова.")
-     
+
+        # elif state == "menu_explain_smart":
+        #     await self.show_post_login_menu(update, context)
 
         else:
            
-            import random
+
             await update.message.reply_text(random.choice(ANOTHER_THEME))
 
     async def show_post_login_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):

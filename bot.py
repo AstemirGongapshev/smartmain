@@ -124,7 +124,7 @@ class BotScenario:
             else:
                 await query.message.reply_text("Фото смарт-контракта не найдено.")
 
-            # Возвращаемся в главное меню
+   
             await self.show_post_login_menu(update, context)
 
 
